@@ -1,37 +1,79 @@
-# DG Group of Hospitals
+# DG Group of Hospitals — Hospital Management System
 
-A highly professional, full-stack Hospital Management System designed to showcase advanced database concepts and premium frontend UI design.
+A hospital management system built around a **MySQL database layer that does the real work**: transactional stored procedures, triggers, role-based privileges and analytical queries. A Node.js/Express API exposes it, and a React dashboard sits on top.
 
-## Features & Architecture
+## What's inside
 
-This project is divided into three key areas to demonstrate full-stack capabilities and deep technical knowledge:
+### Database (`/database`) — the core of the project
 
-### 1. Advanced Database (MySQL)
-The `/database` folder contains highly optimized MySQL scripts demonstrating advanced database concepts:
-- **Complex Joins & Analytics (`5_queries.sql`)**: Features multi-table joins, aggregations, and window functions to generate comprehensive patient histories, monthly revenue reports, and doctor workload analysis.
-- **Stored Procedures (`3_procedures.sql`)**: Contains transactional procedures for complex business logic, such as `schedule_appointment` (which handles concurrency checks and auto-generates pending bills) and `process_payment`.
-- **Triggers (`4_triggers.sql`)**: Automated database responses for cascading appointment cancellations to billing refunds, and maintaining a robust audit trail for doctor status changes.
-- **Security Roles (`2_roles.sql`)**: Implements MySQL roles and granular privileges (Admin, Doctor, Receptionist, Patient) to ensure robust security structure.
+| File | What it does |
+|---|---|
+| `1_schema.sql` | Six tables: `users`, `patients`, `doctors`, `appointments`, `prescriptions`, `billing`, with foreign keys between them |
+| `2_roles.sql` | MySQL roles (`db_admin`, `db_doctor`, `db_receptionist`, `db_patient`) with granular privileges |
+| `3_procedures.sql` | `schedule_appointment` — books an appointment and creates its pending bill in one transaction<br>`process_payment` — locks the bill row (`SELECT … FOR UPDATE`) before recording payment |
+| `4_triggers.sql` | `trg_appointment_cancelled` — cancelling an appointment marks its pending bill as Refunded<br>`trg_doctor_status_audit` — logs every doctor status change to an audit table |
+| `5_queries.sql` | Reporting queries: multi-table joins, aggregations, and doctor workload ranking with `RANK() OVER (...)` |
+| `6_seed.sql` | Sample data |
 
-### 2. Modern Frontend (React + Vite)
-The `/frontend` folder contains a highly polished, responsive web application built with React and Vite.
-- **Premium Aesthetics**: Utilizes a custom glassmorphism design system, vibrant accents, dark mode by default, and smooth micro-animations.
-- **Dynamic Routing & State**: Demonstrates fluid transitions between Dashboard, Patient Management, and Doctor Directories.
+### Backend API (`/backend`) — Node.js + Express + mysql2
 
-### 3. Backend API (Node.js + Express)
-The `/backend` folder contains the Express server setup ready to interface with the MySQL database using the `mysql2` driver.
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/health` | Checks the database connection |
+| GET | `/api/patients` | Lists patients with computed age |
+| GET | `/api/doctors` | Lists doctors with their appointment counts |
+| GET | `/api/appointments` | Lists appointments joined with patient and doctor names |
+| POST | `/api/appointments` | Schedules an appointment by calling the `schedule_appointment` stored procedure |
 
-## How to Run
+All queries use parameterized statements and a connection pool.
 
-### Frontend
-1. Navigate to the `frontend` directory: `cd frontend`
-2. Install dependencies: `npm install`
-3. Run the development server: `npm run dev`
+### Frontend (`/frontend`) — React + Vite
 
-### Backend
-1. Navigate to the `backend` directory: `cd backend`
-2. Install dependencies: `npm install`
-3. Start the server: `node server.js`
+- **Dashboard:** patient, appointment and doctor counts, plus recent appointments
+- **Doctor directory**
+- **Schedule appointment** form that goes through the API and stored procedure
 
-### Database
-Execute the SQL files located in the `/database` directory sequentially against your MySQL instance to create the schema, roles, procedures, and triggers. You can use tools like MySQL Workbench, phpMyAdmin, or the MySQL Command Line Client.
+The Patients, Appointments and Billing tabs are placeholders for now (see Roadmap).
+
+## Running it locally
+
+**Prerequisites:** Node.js 18+ and MySQL 8.
+
+### 1. Database
+
+Run the scripts in order:
+
+```bash
+mysql -u root -p < database/1_schema.sql
+mysql -u root -p < database/2_roles.sql
+mysql -u root -p < database/3_procedures.sql
+mysql -u root -p < database/4_triggers.sql
+mysql -u root -p < database/6_seed.sql
+```
+
+`5_queries.sql` holds reporting queries; run them individually to explore the data.
+
+### 2. Backend
+
+```bash
+cd backend
+cp .env.example .env    # then put your MySQL password in .env
+npm install
+node server.js          # http://localhost:5000
+```
+
+### 3. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev             # http://localhost:5173
+```
+
+## Roadmap
+
+- [ ] Patients tab: full list, search, add/edit
+- [ ] Appointments tab: filter by status/date, cancel (fires the cancellation trigger)
+- [ ] Billing tab: outstanding bills, pay via `process_payment`
+- [ ] Authentication mapped to the MySQL roles
+- [ ] Move the API base URL into a Vite env variable
